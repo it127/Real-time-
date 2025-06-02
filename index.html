@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Real-Time Timer</title>
+  <style>
+    body {
+      font-family: 'Montserrat', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f0f0f0;
+      transition: background-color 0.3s ease;
+    }
+
+    .timer-container {
+      text-align: center;
+      padding: 20px;
+      background-color: #fff;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      animation: fadeIn 0.5s ease;
+      width: 80%;
+      max-width: 500px;
+    }
+
+    #timer {
+      font-size: 60px;
+      font-weight: bold;
+      margin-top: 20px;
+      color: #333;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #date {
+      font-size: 18px;
+      margin-top: 20px;
+      color: #555;
+    }
+
+    .dark-mode {
+      background-color: #333;
+    }
+
+    .dark-mode .timer-container {
+      background-color: #444;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .dark-mode #timer {
+      color: #fff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .dark-mode #date {
+      color: #ccc;
+    }
+
+    @keyframes fadeIn {
+      0% {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 600px) {
+      .timer-container {
+        padding: 10px;
+      }
+
+      #timer {
+        font-size: 40px;
+      }
+
+      #date {
+        font-size: 14px;
+      }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="timer-container">
+    <h1>Real-Time Timer</h1>
+    <div id="timer"></div>
+    <div id="date"></div>
+    <button id="darkModeToggle">Toggle Dark Mode</button>
+  </div>
+
+  <script>
+    function updateTime() {
+      var currentTime = new Date();
+      var hours = currentTime.getHours();
+      var minutes = currentTime.getMinutes();
+      var seconds = currentTime.getSeconds();
+      var day = currentTime.getDay();
+      var date = currentTime.getDate();
+      var month = currentTime.getMonth();
+      var year = currentTime.getFullYear();
+
+      // Add leading zeros if necessary
+      hours = (hours < 10 ? "0" : "") + hours;
+      minutes = (minutes < 10 ? "0" : "") + minutes;
+      seconds = (seconds < 10 ? "0" : "") + seconds;
+
+      // Array of day names
+      var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+      // Array of month names
+      var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+      // Construct the time string
+      var timeString = hours + ":" + minutes + ":" + seconds;
+
+      // Construct the date string
+      var dateString = days[day] + ", " + date + " " + months[month] + " " + year;
+
+      // Update the time and date in the DOM
+      document.getElementById("timer").textContent = timeString;
+      document.getElementById("date").textContent = dateString;
+    }
+
+    // Update the time and date every second
+    setInterval(updateTime, 1000);
+
+    // Dark mode toggle
+    var darkModeToggle = document.getElementById("darkModeToggle");
+    var body = document.body;
+
+    darkModeToggle.addEventListener("click", function() {
+      body.classList.toggle("dark-mode");
+    });
+  </script>
+</body>
+</html>
