@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-fmt="24">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="color-scheme" content="dark" />
   <meta name="theme-color" content="#07070d" />
-  <meta name="description" content="An elegant real-time clock with a premium, fluid interface." />
+  <meta name="description" content="A full-screen flip clock with 12/24-hour settings." />
   <title>Real-Time Timer</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237b6cff'/%3E%3Cstop offset='1' stop-color='%2348d7ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%2307070d'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='url(%23g)' stroke-width='5'/%3E%3Cpath d='M32 32V20' stroke='url(%23g)' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -17,18 +17,38 @@
       --ink: #f2f3fa;
       --ink-dim: #aab0c8;
       --ink-faint: #858ca8;
-      --card-fallback-top: rgba(21, 22, 38, 0.82);
-      --card-fallback-bottom: rgba(11, 11, 20, 0.68);
-      --card-glass-top: rgba(255, 255, 255, 0.065);
-      --card-glass-bottom: rgba(255, 255, 255, 0.022);
-      --stroke: rgba(255, 255, 255, 0.09);
       --accent-1: #7b6cff;
       --accent-2: #48d7ff;
-      --accent-3: #ff7ab6;
-      --radius: clamp(22px, 4.4vw, 34px);
+      --stroke: rgba(255, 255, 255, 0.09);
+      --face-top-a: #1e2137;
+      --face-top-b: #191c30;
+      --face-bot-a: #151827;
+      --face-bot-b: #101322;
       --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --fd: 0.44s;
+      --fd-half: 0.22s;
       --sync: 0ms;
-      --bar-sync: 0s;
+      /* digit card unit: fits 6 digits + separators + AM/PM badge on any screen */
+      --u: min(11.8vw, 18vh);
+      --ch: calc(var(--u) * 1.42);
+      --fs: calc(var(--u) * 1.18);
+      --gap: calc(var(--u) * 0.12);
+      --sep-w: calc(var(--u) * 0.3);
+      --radius: calc(var(--u) * 0.12);
+    }
+
+    html[data-fmt="12"] {
+      --u: min(10.6vw, 18vh);
+    }
+
+    @supports (height: 1dvh) {
+      :root {
+        --u: min(11.8vw, 18dvh);
+      }
+
+      html[data-fmt="12"] {
+        --u: min(10.6vw, 18dvh);
+      }
     }
 
     *,
@@ -49,13 +69,27 @@
       color: var(--ink);
       background-color: var(--bg);
       background-image:
-        radial-gradient(90vmax 90vmax at 12% -12%, rgba(123, 108, 255, 0.30), transparent 60%),
-        radial-gradient(70vmax 70vmax at 112% 14%, rgba(72, 215, 255, 0.15), transparent 55%),
-        radial-gradient(85vmax 85vmax at 50% 118%, rgba(255, 122, 182, 0.13), transparent 60%),
+        radial-gradient(90vmax 90vmax at 12% -12%, rgba(123, 108, 255, 0.28), transparent 60%),
+        radial-gradient(70vmax 70vmax at 112% 14%, rgba(72, 215, 255, 0.13), transparent 55%),
+        radial-gradient(85vmax 85vmax at 50% 118%, rgba(255, 122, 182, 0.11), transparent 60%),
         linear-gradient(180deg, #0a0a13 0%, #07070d 55%, #05050a 100%);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* ---------- Stage (no card, clock sits directly on the background) ---------- */
 
     .stage {
       display: flex;
@@ -70,183 +104,191 @@
         max(16px, env(safe-area-inset-left));
     }
 
-    /* ---------- Card ---------- */
-
-    .card {
-      position: relative;
-      isolation: isolate;
-      width: min(100%, 560px);
+    .clock {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: clamp(14px, 3.2vh, 24px);
-      padding: clamp(24px, min(6.5vw, 8vh), 46px);
-      border-radius: var(--radius);
-      border: 1px solid var(--stroke);
-      text-align: center;
-      overflow: hidden;
-      background-image:
-        radial-gradient(120% 80% at 50% -20%, rgba(123, 108, 255, 0.24), transparent 55%),
-        linear-gradient(165deg, var(--card-fallback-top), var(--card-fallback-bottom));
-      box-shadow:
-        0 32px 64px -24px rgba(0, 0, 0, 0.7),
-        0 4px 14px rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.14);
-      animation: card-in 0.7s var(--ease-out) both;
+      gap: calc(var(--u) * 0.3);
+      width: 100%;
+      user-select: none;
+      -webkit-user-select: none;
+      animation: rise 0.9s var(--ease-out) both;
     }
 
-    @supports ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
-      .card {
-        background-image:
-          radial-gradient(120% 80% at 50% -20%, rgba(123, 108, 255, 0.22), transparent 55%),
-          linear-gradient(165deg, var(--card-glass-top), var(--card-glass-bottom));
-        -webkit-backdrop-filter: blur(14px) saturate(140%);
-        backdrop-filter: blur(14px) saturate(140%);
-      }
-    }
-
-    /* ---------- Eyebrow ---------- */
-
-    .eyebrow {
+    .row {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      margin: 0;
-      animation: rise-in 0.7s 0.1s var(--ease-out) both;
+      gap: var(--gap);
+      width: 100%;
     }
 
-    .eyebrow h1 {
-      margin: 0;
-      font-size: clamp(0.7rem, 2.6vw, 0.78rem);
-      font-weight: 600;
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      text-indent: 0.3em; /* balances trailing letter-spacing */
-      color: var(--ink-dim);
-    }
-
-    .dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex: none;
-      background: var(--accent-3);
-      box-shadow: 0 0 10px rgba(255, 122, 182, 0.75);
-      animation: pulse 1s ease-in-out infinite;
-      animation-delay: var(--sync);
-    }
-
-    /* ---------- Time ---------- */
-
-    .time {
+    .sub {
       display: flex;
-      align-items: baseline;
       justify-content: center;
-      font-size: clamp(3rem, min(17vw, 24vh), 5.75rem);
-      font-weight: 700;
-      line-height: 1;
-      letter-spacing: -0.015em;
-      font-variant-numeric: tabular-nums;
-      font-feature-settings: "tnum" 1;
-      color: var(--ink);
-      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
-      animation: rise-in 0.8s 0.2s var(--ease-out) both;
     }
-
-    .colon {
-      color: inherit;
-      animation: pulse 1s ease-in-out infinite;
-      animation-delay: var(--sync);
-    }
-
-    .seconds {
-      margin-left: 0.2em;
-      font-size: 0.42em;
-      font-weight: 600;
-      color: var(--accent-2);
-    }
-
-    @supports ((-webkit-background-clip: text) or (background-clip: text)) {
-      .seconds {
-        background-image: linear-gradient(135deg, var(--accent-2), var(--accent-1));
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        -webkit-text-fill-color: transparent;
-      }
-    }
-
-    /* ---------- Date ---------- */
 
     .date {
-      margin: 0;
-      font-size: clamp(0.9rem, 3.6vw, 1.05rem);
+      font-size: clamp(11px, calc(var(--u) * 0.16), 20px);
       font-weight: 500;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--ink-dim);
-      animation: rise-in 0.8s 0.32s var(--ease-out) both;
     }
 
-    .date:empty,
-    .zone:empty {
+    .date:empty {
       visibility: hidden;
     }
 
-    /* ---------- Minute progress ---------- */
+    /* ---------- Flip cards ---------- */
 
-    .track {
-      width: min(100%, 320px);
-      height: 4px;
-      border-radius: 99px;
-      overflow: hidden;
-      background: rgba(255, 255, 255, 0.09);
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
-      animation: rise-in 0.8s 0.44s var(--ease-out) both;
+    .flip {
+      position: relative;
+      flex: none;
+      width: var(--u);
+      height: var(--ch);
+      perspective: calc(var(--u) * 3);
+      border-radius: var(--radius);
+      box-shadow: 0 calc(var(--u) * 0.05) calc(var(--u) * 0.16) rgba(0, 0, 0, 0.5);
     }
 
-    .bar {
-      display: block;
+    .half {
+      position: absolute;
+      left: 0;
       width: 100%;
-      height: 100%;
-      border-radius: inherit;
-      background-image: linear-gradient(90deg, var(--accent-1), var(--accent-2));
-      transform: scaleX(0);
-      transform-origin: left center;
-      animation: fill 60s linear infinite;
-      animation-delay: var(--bar-sync);
+      height: 50%;
+      overflow: hidden;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
     }
 
-    /* ---------- Zone / note ---------- */
+    .half.top {
+      top: 0;
+      border-radius: var(--radius) var(--radius) 0 0;
+      background-image: linear-gradient(180deg, var(--face-top-a), var(--face-top-b));
+    }
 
-    .zone {
-      margin: 0;
-      font-size: clamp(0.62rem, 2.4vw, 0.7rem);
+    .half.bottom {
+      bottom: 0;
+      border-radius: 0 0 var(--radius) var(--radius);
+      background-image: linear-gradient(180deg, var(--face-bot-a), var(--face-bot-b));
+    }
+
+    /* the hinge seam between the two halves */
+    .half.top::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 1px;
+      background: rgba(0, 0, 0, 0.6);
+    }
+
+    .half.bottom::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .num {
+      position: absolute;
+      left: 0;
+      width: 100%;
+      height: var(--ch);
+      line-height: var(--ch);
+      text-align: center;
+      font-size: var(--fs);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+      color: var(--ink);
+    }
+
+    .half.top .num {
+      top: 0;
+    }
+
+    .half.bottom .num {
+      bottom: 0;
+    }
+
+    .flap {
+      visibility: hidden;
+    }
+
+    .flap-top {
+      transform-origin: 50% 100%;
+    }
+
+    .flap-bottom {
+      transform-origin: 50% 0%;
+    }
+
+    .flip.flipping .flap {
+      visibility: visible;
+    }
+
+    .flip.flipping .flap-top {
+      animation: flip-down var(--fd) cubic-bezier(0.55, 0.06, 0.68, 1.9) forwards;
+    }
+
+    .flip.flipping .flap-bottom {
+      animation: flip-up var(--fd) cubic-bezier(0.215, 0.61, 0.355, 1) var(--fd-half) backwards;
+    }
+
+    @keyframes flip-down {
+      from { transform: rotateX(0deg); }
+      to { transform: rotateX(-90deg); }
+    }
+
+    @keyframes flip-up {
+      from { transform: rotateX(90deg); }
+      to { transform: rotateX(0deg); }
+    }
+
+    /* AM/PM badge reuses the flip card at a slimmer width */
+    .badge {
+      width: calc(var(--u) * 0.7);
+    }
+
+    .badge .num {
+      font-size: calc(var(--u) * 0.38);
       font-weight: 600;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      text-indent: 0.18em;
-      color: var(--ink-faint);
-      animation: rise-in 0.8s 0.54s var(--ease-out) both;
+      letter-spacing: 0.04em;
+      color: var(--accent-2);
     }
 
-    .note {
-      margin: 0;
-      font-size: 0.78rem;
-      font-weight: 500;
-      color: var(--ink-faint);
+    html[data-fmt="24"] .badge {
+      display: none;
     }
 
-    /* ---------- Keyframes ---------- */
+    /* ---------- Colon separators ---------- */
 
-    @keyframes card-in {
-      from { opacity: 0; }
-      to { opacity: 1; }
+    .sep {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: calc(var(--u) * 0.14);
+      flex: none;
+      width: var(--sep-w);
+      height: var(--ch);
     }
 
-    @keyframes rise-in {
-      from { opacity: 0; transform: translateY(14px); }
-      to { opacity: 1; transform: translateY(0); }
+    .sep i {
+      display: block;
+      width: calc(var(--u) * 0.13);
+      height: calc(var(--u) * 0.13);
+      border-radius: 50%;
+      background: var(--accent-2);
+      box-shadow: 0 0 calc(var(--u) * 0.1) rgba(72, 215, 255, 0.7);
+      animation: pulse 1s ease-in-out infinite;
+      animation-delay: var(--sync);
     }
 
     @keyframes pulse {
@@ -255,128 +297,349 @@
       100% { opacity: 1; }
     }
 
-    @keyframes fill {
-      from { transform: scaleX(0); }
-      to { transform: scaleX(1); }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    /* ---------- Responsive polish ---------- */
+    /* ---------- Settings gear ---------- */
 
-    @media (max-height: 430px) {
-      .card {
-        gap: clamp(10px, 3vh, 18px);
-        padding: clamp(18px, min(5vw, 7vh), 30px);
-      }
+    .gear {
+      position: fixed;
+      z-index: 30;
+      top: max(16px, env(safe-area-inset-top));
+      right: max(16px, env(safe-area-inset-right));
+      width: clamp(40px, 10vw, 46px);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      border: 1px solid var(--stroke);
+      background: rgba(16, 17, 30, 0.72);
+      color: var(--ink-dim);
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
     }
 
-    /* ---------- Accessibility ---------- */
+    .gear:hover {
+      background: rgba(26, 28, 48, 0.92);
+      color: var(--ink);
+    }
+
+    .gear:active {
+      transform: scale(0.94);
+    }
+
+    .gear[aria-expanded="true"] {
+      background: rgba(32, 34, 56, 0.96);
+      color: #fff;
+    }
+
+    .gear svg {
+      width: 55%;
+      height: 55%;
+    }
+
+    .gear:focus-visible,
+    .seg-btn:focus-visible {
+      outline: 2px solid var(--accent-2);
+      outline-offset: 3px;
+    }
+
+    /* ---------- Settings panel ---------- */
+
+    .settings {
+      position: fixed;
+      z-index: 30;
+      top: calc(max(16px, env(safe-area-inset-top)) + 58px);
+      right: max(16px, env(safe-area-inset-right));
+      width: min(272px, calc(100vw - 32px));
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--stroke);
+      background-image: linear-gradient(165deg, rgba(24, 26, 44, 0.97), rgba(13, 14, 26, 0.97));
+      box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s var(--ease-out), visibility 0s linear 0.22s;
+    }
+
+    .settings.open {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+      pointer-events: auto;
+      transition: opacity 0.22s ease, transform 0.22s var(--ease-out), visibility 0s;
+    }
+
+    .settings-label {
+      margin: 0 0 12px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+    }
+
+    .settings-hint {
+      margin: 12px 0 0;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--ink-faint);
+    }
+
+    .seg {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      padding: 4px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .seg-pill {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      left: 4px;
+      width: calc(50% - 4px);
+      border-radius: 999px;
+      background-image: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      transition: transform 0.25s var(--ease-out);
+    }
+
+    .seg-btn {
+      position: relative;
+      z-index: 1;
+      appearance: none;
+      -webkit-appearance: none;
+      border: 0;
+      padding: 10px 0;
+      background: transparent;
+      border-radius: 999px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--ink-dim);
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .seg-btn[aria-checked="true"] {
+      color: #fff;
+    }
+
+    /* ---------- Accessibility / low-power ---------- */
 
     @media (prefers-reduced-motion: reduce) {
-      .card,
-      .eyebrow,
-      .time,
-      .date,
-      .track,
-      .zone,
-      .colon,
-      .dot,
-      .bar {
+      .clock,
+      .sep i,
+      .settings,
+      .gear,
+      .seg-pill {
         animation: none !important;
+        transition: none !important;
+      }
+
+      .flap {
+        display: none !important;
       }
     }
 
     @media (forced-colors: active) {
-      .seconds {
-        color: var(--ink);
-        -webkit-text-fill-color: currentColor;
+      .half.top,
+      .half.bottom {
         background-image: none;
+        background-color: Canvas;
       }
 
-      .bar {
-        background-image: none;
-        background-color: Highlight;
+      .num {
+        color: CanvasText;
       }
 
-      .track {
+      .sep i {
+        background: CanvasText;
+        box-shadow: none;
+      }
+
+      .gear,
+      .settings,
+      .seg {
         border: 1px solid CanvasText;
       }
     }
   </style>
 </head>
 <body>
+  <h1 class="sr-only">Real-Time Timer</h1>
+
+  <button id="gear" class="gear" type="button" aria-expanded="false" aria-controls="settings" aria-label="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
+
+  <div class="settings" id="settings" role="group" aria-label="Settings">
+    <p class="settings-label">Time format</p>
+    <div class="seg" role="radiogroup" aria-label="Time format">
+      <span class="seg-pill" id="pill" aria-hidden="true"></span>
+      <button class="seg-btn" id="fmt12" type="button" role="radio" data-fmt="12" aria-checked="false">12H</button>
+      <button class="seg-btn" id="fmt24" type="button" role="radio" data-fmt="24" aria-checked="true">24H</button>
+    </div>
+    <p class="settings-hint">Your choice is saved on this device.</p>
+  </div>
+
   <main class="stage">
-    <article class="card">
-      <header class="eyebrow">
-        <span class="dot" aria-hidden="true"></span>
-        <h1>Real-Time Timer</h1>
-      </header>
-
-      <div class="time" id="time" role="timer" aria-live="off" aria-label="Current time">
-        <span id="hh">--</span><span class="colon">:</span><span id="mm">--</span>
-        <span class="seconds" id="ss">--</span>
+    <div class="clock">
+      <div class="row" id="row" role="timer" aria-live="off" aria-label="Current time"></div>
+      <div class="sub">
+        <span class="date" id="date"></span>
       </div>
-
-      <p class="date" id="date"></p>
-
-      <div class="track" aria-hidden="true"><span class="bar" id="bar"></span></div>
-
-      <p class="zone" id="zone"></p>
-
-      <noscript><p class="note">Enable JavaScript to display the live time.</p></noscript>
-    </article>
+    </div>
   </main>
+
+  <noscript><p class="note">Enable JavaScript to display the flip clock.</p></noscript>
 
   <script>
     (function () {
       "use strict";
+
+      var FLIP_MS = 440;
+      var KEY = "rtt.format";
 
       var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       var MONTHS = ["January", "February", "March", "April", "May", "June",
                     "July", "August", "September", "October", "November", "December"];
 
       var root = document.documentElement;
-      var hhEl = document.getElementById("hh");
-      var mmEl = document.getElementById("mm");
-      var ssEl = document.getElementById("ss");
+      var row = document.getElementById("row");
       var dateEl = document.getElementById("date");
-      var zoneEl = document.getElementById("zone");
-      var barEl = document.getElementById("bar");
+      var gear = document.getElementById("gear");
+      var panel = document.getElementById("settings");
+      var pill = document.getElementById("pill");
+      var btn12 = document.getElementById("fmt12");
+      var btn24 = document.getElementById("fmt24");
 
       var reduced = false;
       try {
         reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      } catch (e) { /* older browsers: keep motion */ }
-
-      var timeoutId = null;
-      var lastDateText = "";
+      } catch (e) { /* keep motion */ }
 
       function pad(n) {
         return n < 10 ? "0" + n : "" + n;
       }
 
-      function zoneLabel() {
-        try {
-          var tz = new Intl.DateTimeFormat().resolvedOptions().timeZone;
-          if (!tz) return "";
-          var offMin = -new Date().getTimezoneOffset();
-          var sign = offMin < 0 ? "\u2212" : "+";
-          var abs = Math.abs(offMin);
-          return tz.replace(/_/g, " ") + " \u00b7 UTC" + sign + pad(Math.floor(abs / 60)) + ":" + pad(abs % 60);
-        } catch (e) {
-          return "";
-        }
+      function make(tag, cls) {
+        var n = document.createElement(tag);
+        if (cls) n.className = cls;
+        return n;
       }
 
-      /* Aligns the CSS pulse/bar animations to the wall clock (once per
-         resume — the CSS runs itself afterwards, so nothing runs per frame). */
-      function syncMotion() {
-        if (reduced) return;
-        var now = Date.now();
-        var ms = now % 1000;
-        var sec = new Date(now).getSeconds();
-        root.style.setProperty("--sync", "-" + ms + "ms");
-        root.style.setProperty("--bar-sync", "-" + (sec * 1000 + ms) + "ms");
+      /* ---------- Flip card factory ---------- */
+
+      function makeFlip(extraClass) {
+        var el = make("div", "flip" + (extraClass ? " " + extraClass : ""));
+
+        var halfTop = make("div", "half top");
+        var topNum = make("span", "num");
+        halfTop.appendChild(topNum);
+
+        var halfBot = make("div", "half bottom");
+        var botNum = make("span", "num");
+        halfBot.appendChild(botNum);
+
+        var flapTop = make("div", "half top flap flap-top");
+        var fTopNum = make("span", "num");
+        flapTop.appendChild(fTopNum);
+
+        var flapBot = make("div", "half bottom flap flap-bottom");
+        var fBotNum = make("span", "num");
+        flapBot.appendChild(fBotNum);
+
+        el.appendChild(halfTop);
+        el.appendChild(halfBot);
+        el.appendChild(flapTop);
+        el.appendChild(flapBot);
+
+        return { el: el, top: topNum, bottom: botNum, ftop: fTopNum, fbot: fBotNum, v: "", timer: null };
       }
+
+      function makeSep() {
+        var el = make("div", "sep");
+        el.appendChild(make("i"));
+        el.appendChild(make("i"));
+        return el;
+      }
+
+      var h1 = makeFlip();
+      var h2 = makeFlip();
+      var sep1 = makeSep();
+      var m1 = makeFlip();
+      var m2 = makeFlip();
+      var sep2 = makeSep();
+      var s1 = makeFlip();
+      var s2 = makeFlip();
+      var badge = makeFlip("badge");
+
+      row.appendChild(h1.el);
+      row.appendChild(h2.el);
+      row.appendChild(sep1);
+      row.appendChild(m1.el);
+      row.appendChild(m2.el);
+      row.appendChild(sep2);
+      row.appendChild(s1.el);
+      row.appendChild(s2.el);
+      row.appendChild(badge.el);
+
+      /* Only digits that actually change flip; the rest stay still. */
+      function flipTo(d, ch) {
+        if (d.v === ch) return;
+        var old = d.v;
+        d.v = ch;
+
+        if (d.timer) {
+          /* interrupted flip: complete its pending bottom-half swap first */
+          window.clearTimeout(d.timer);
+          d.timer = null;
+          d.bottom.textContent = old;
+        }
+
+        if (ch === "" || reduced || old === "") {
+          d.top.textContent = ch;
+          d.bottom.textContent = ch;
+          d.el.classList.remove("flipping");
+          return;
+        }
+
+        d.top.textContent = ch; /* revealed behind the falling flap */
+        d.ftop.textContent = old; /* the flap that falls away */
+        d.fbot.textContent = ch; /* the flap that lands showing the new bottom */
+
+        d.el.classList.remove("flipping");
+        void d.el.offsetWidth; /* reflow so the animation restarts */
+        d.el.classList.add("flipping");
+
+        d.timer = window.setTimeout(function () {
+          d.bottom.textContent = ch; /* swap underneath while covered */
+          d.el.classList.remove("flipping");
+          d.timer = null;
+        }, FLIP_MS + 40);
+      }
+
+      /* ---------- Format (12H / 24H) ---------- */
+
+      var fmt = "24";
+      try {
+        if (window.localStorage.getItem(KEY) === "12") fmt = "12";
+      } catch (e) { /* default */ }
+
+      var lastDate = "";
 
       function render() {
         var now = new Date();
@@ -384,25 +647,61 @@
         var m = now.getMinutes();
         var s = now.getSeconds();
 
-        hhEl.textContent = pad(h);
-        mmEl.textContent = pad(m);
-        ssEl.textContent = pad(s);
-
-        var dateText = DAYS[now.getDay()] + ", " + now.getDate() + " " +
-                       MONTHS[now.getMonth()] + " " + now.getFullYear();
-        if (dateText !== lastDateText) {
-          lastDateText = dateText;
-          dateEl.textContent = dateText;
-          zoneEl.textContent = zoneLabel();
-          syncMotion();
+        var hourStr;
+        var ampm = "";
+        if (fmt === "12") {
+          var h12 = h % 12;
+          if (h12 === 0) h12 = 12;
+          hourStr = pad(h12);
+          ampm = h < 12 ? "AM" : "PM";
+        } else {
+          hourStr = pad(h);
         }
 
-        if (reduced) {
-          barEl.style.transform = "scaleX(" + ((s + 1) / 60) + ")";
+        var mStr = pad(m);
+        var sStr = pad(s);
+
+        flipTo(h1, hourStr.charAt(0));
+        flipTo(h2, hourStr.charAt(1));
+        flipTo(m1, mStr.charAt(0));
+        flipTo(m2, mStr.charAt(1));
+        flipTo(s1, sStr.charAt(0));
+        flipTo(s2, sStr.charAt(1));
+        flipTo(badge, fmt === "12" ? ampm : "");
+
+        var ds = DAYS[now.getDay()] + ", " + now.getDate() + " " +
+                 MONTHS[now.getMonth()] + " " + now.getFullYear();
+        if (ds !== lastDate) {
+          lastDate = ds;
+          dateEl.textContent = ds;
+          syncMotion();
         }
       }
 
-      /* Drift-free: each timeout targets the next whole-second boundary. */
+      function applyFormat(next, persist) {
+        fmt = next;
+        root.setAttribute("data-fmt", fmt);
+        if (persist) {
+          try {
+            window.localStorage.setItem(KEY, fmt);
+          } catch (e) { /* private mode: choice not persisted */ }
+        }
+        btn12.setAttribute("aria-checked", fmt === "12" ? "true" : "false");
+        btn24.setAttribute("aria-checked", fmt === "24" ? "true" : "false");
+        pill.style.transform = fmt === "12" ? "translateX(0%)" : "translateX(100%)";
+        render();
+      }
+
+      /* ---------- Drift-free second-aligned ticking ---------- */
+
+      var timeoutId = null;
+
+      /* Phase-aligns the CSS colon pulse to the wall clock. */
+      function syncMotion() {
+        if (reduced) return;
+        root.style.setProperty("--sync", "-" + (Date.now() % 1000) + "ms");
+      }
+
       function schedule() {
         var delay = 1000 - (Date.now() % 1000) + 10;
         timeoutId = window.setTimeout(function () {
@@ -425,7 +724,6 @@
         }
       }
 
-      /* Idle when the tab is hidden; resync instantly when it returns. */
       document.addEventListener("visibilitychange", function () {
         if (document.hidden) {
           stop();
@@ -436,6 +734,55 @@
 
       window.addEventListener("pageshow", start);
 
+      /* ---------- Settings panel ---------- */
+
+      var open = false;
+
+      function setOpen(next) {
+        open = next;
+        if (open) {
+          panel.classList.add("open");
+        } else {
+          panel.classList.remove("open");
+        }
+        gear.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) {
+          try {
+            (fmt === "12" ? btn12 : btn24).focus();
+          } catch (e) { /* noop */ }
+        }
+      }
+
+      gear.addEventListener("click", function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        setOpen(!open);
+      });
+
+      btn12.addEventListener("click", function () {
+        applyFormat("12", true);
+      });
+
+      btn24.addEventListener("click", function () {
+        applyFormat("24", true);
+      });
+
+      document.addEventListener("click", function (e) {
+        if (!open) return;
+        var t = e && e.target;
+        if (!t) return;
+        if (panel.contains && panel.contains(t)) return;
+        if (gear.contains && gear.contains(t)) return;
+        setOpen(false);
+      });
+
+      document.addEventListener("keydown", function (e) {
+        if (!open) return;
+        if (e && (e.key === "Escape" || e.keyCode === 27)) setOpen(false);
+      });
+
+      /* ---------- Boot ---------- */
+
+      applyFormat(fmt, false);
       start();
     })();
   </script>
