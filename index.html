@@ -1,141 +1,443 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#07070d" />
+  <meta name="description" content="An elegant real-time clock with a premium, fluid interface." />
   <title>Real-Time Timer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237b6cff'/%3E%3Cstop offset='1' stop-color='%2348d7ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%2307070d'/%3E%3Ccircle cx='32' cy='32' r='19' fill='none' stroke='url(%23g)' stroke-width='5'/%3E%3Cpath d='M32 32V20' stroke='url(%23g)' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --bg: #07070d;
+      --ink: #f2f3fa;
+      --ink-dim: #aab0c8;
+      --ink-faint: #858ca8;
+      --card-fallback-top: rgba(21, 22, 38, 0.82);
+      --card-fallback-bottom: rgba(11, 11, 20, 0.68);
+      --card-glass-top: rgba(255, 255, 255, 0.065);
+      --card-glass-bottom: rgba(255, 255, 255, 0.022);
+      --stroke: rgba(255, 255, 255, 0.09);
+      --accent-1: #7b6cff;
+      --accent-2: #48d7ff;
+      --accent-3: #ff7ab6;
+      --radius: clamp(22px, 4.4vw, 34px);
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --sync: 0ms;
+      --bar-sync: 0s;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      background-color: var(--bg);
+    }
+
     body {
-      font-family: 'Montserrat', sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
       margin: 0;
-      background-color: #f0f0f0;
-      transition: background-color 0.3s ease;
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(90vmax 90vmax at 12% -12%, rgba(123, 108, 255, 0.30), transparent 60%),
+        radial-gradient(70vmax 70vmax at 112% 14%, rgba(72, 215, 255, 0.15), transparent 55%),
+        radial-gradient(85vmax 85vmax at 50% 118%, rgba(255, 122, 182, 0.13), transparent 60%),
+        linear-gradient(180deg, #0a0a13 0%, #07070d 55%, #05050a 100%);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
-    .timer-container {
+    .stage {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding:
+        max(16px, env(safe-area-inset-top))
+        max(16px, env(safe-area-inset-right))
+        max(16px, env(safe-area-inset-bottom))
+        max(16px, env(safe-area-inset-left));
+    }
+
+    /* ---------- Card ---------- */
+
+    .card {
+      position: relative;
+      isolation: isolate;
+      width: min(100%, 560px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(14px, 3.2vh, 24px);
+      padding: clamp(24px, min(6.5vw, 8vh), 46px);
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
       text-align: center;
-      padding: 20px;
-      background-color: #fff;
-      border-radius: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      animation: fadeIn 0.5s ease;
-      width: 80%;
-      max-width: 500px;
+      overflow: hidden;
+      background-image:
+        radial-gradient(120% 80% at 50% -20%, rgba(123, 108, 255, 0.24), transparent 55%),
+        linear-gradient(165deg, var(--card-fallback-top), var(--card-fallback-bottom));
+      box-shadow:
+        0 32px 64px -24px rgba(0, 0, 0, 0.7),
+        0 4px 14px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      animation: card-in 0.7s var(--ease-out) both;
     }
 
-    #timer {
-      font-size: 60px;
-      font-weight: bold;
-      margin-top: 20px;
-      color: #333;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    #date {
-      font-size: 18px;
-      margin-top: 20px;
-      color: #555;
-    }
-
-    .dark-mode {
-      background-color: #333;
-    }
-
-    .dark-mode .timer-container {
-      background-color: #444;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    }
-
-    .dark-mode #timer {
-      color: #fff;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    .dark-mode #date {
-      color: #ccc;
-    }
-
-    @keyframes fadeIn {
-      0% {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      100% {
-        opacity: 1;
-        transform: translateY(0);
+    @supports ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
+      .card {
+        background-image:
+          radial-gradient(120% 80% at 50% -20%, rgba(123, 108, 255, 0.22), transparent 55%),
+          linear-gradient(165deg, var(--card-glass-top), var(--card-glass-bottom));
+        -webkit-backdrop-filter: blur(14px) saturate(140%);
+        backdrop-filter: blur(14px) saturate(140%);
       }
     }
 
-    @media (max-width: 600px) {
-      .timer-container {
-        padding: 10px;
+    /* ---------- Eyebrow ---------- */
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 0;
+      animation: rise-in 0.7s 0.1s var(--ease-out) both;
+    }
+
+    .eyebrow h1 {
+      margin: 0;
+      font-size: clamp(0.7rem, 2.6vw, 0.78rem);
+      font-weight: 600;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      text-indent: 0.3em; /* balances trailing letter-spacing */
+      color: var(--ink-dim);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex: none;
+      background: var(--accent-3);
+      box-shadow: 0 0 10px rgba(255, 122, 182, 0.75);
+      animation: pulse 1s ease-in-out infinite;
+      animation-delay: var(--sync);
+    }
+
+    /* ---------- Time ---------- */
+
+    .time {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      font-size: clamp(3rem, min(17vw, 24vh), 5.75rem);
+      font-weight: 700;
+      line-height: 1;
+      letter-spacing: -0.015em;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1;
+      color: var(--ink);
+      text-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+      animation: rise-in 0.8s 0.2s var(--ease-out) both;
+    }
+
+    .colon {
+      color: inherit;
+      animation: pulse 1s ease-in-out infinite;
+      animation-delay: var(--sync);
+    }
+
+    .seconds {
+      margin-left: 0.2em;
+      font-size: 0.42em;
+      font-weight: 600;
+      color: var(--accent-2);
+    }
+
+    @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+      .seconds {
+        background-image: linear-gradient(135deg, var(--accent-2), var(--accent-1));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+      }
+    }
+
+    /* ---------- Date ---------- */
+
+    .date {
+      margin: 0;
+      font-size: clamp(0.9rem, 3.6vw, 1.05rem);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      color: var(--ink-dim);
+      animation: rise-in 0.8s 0.32s var(--ease-out) both;
+    }
+
+    .date:empty,
+    .zone:empty {
+      visibility: hidden;
+    }
+
+    /* ---------- Minute progress ---------- */
+
+    .track {
+      width: min(100%, 320px);
+      height: 4px;
+      border-radius: 99px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.09);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+      animation: rise-in 0.8s 0.44s var(--ease-out) both;
+    }
+
+    .bar {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: inherit;
+      background-image: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+      transform: scaleX(0);
+      transform-origin: left center;
+      animation: fill 60s linear infinite;
+      animation-delay: var(--bar-sync);
+    }
+
+    /* ---------- Zone / note ---------- */
+
+    .zone {
+      margin: 0;
+      font-size: clamp(0.62rem, 2.4vw, 0.7rem);
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      text-indent: 0.18em;
+      color: var(--ink-faint);
+      animation: rise-in 0.8s 0.54s var(--ease-out) both;
+    }
+
+    .note {
+      margin: 0;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: var(--ink-faint);
+    }
+
+    /* ---------- Keyframes ---------- */
+
+    @keyframes card-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes rise-in {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0% { opacity: 1; }
+      55% { opacity: 0.32; }
+      100% { opacity: 1; }
+    }
+
+    @keyframes fill {
+      from { transform: scaleX(0); }
+      to { transform: scaleX(1); }
+    }
+
+    /* ---------- Responsive polish ---------- */
+
+    @media (max-height: 430px) {
+      .card {
+        gap: clamp(10px, 3vh, 18px);
+        padding: clamp(18px, min(5vw, 7vh), 30px);
+      }
+    }
+
+    /* ---------- Accessibility ---------- */
+
+    @media (prefers-reduced-motion: reduce) {
+      .card,
+      .eyebrow,
+      .time,
+      .date,
+      .track,
+      .zone,
+      .colon,
+      .dot,
+      .bar {
+        animation: none !important;
+      }
+    }
+
+    @media (forced-colors: active) {
+      .seconds {
+        color: var(--ink);
+        -webkit-text-fill-color: currentColor;
+        background-image: none;
       }
 
-      #timer {
-        font-size: 40px;
+      .bar {
+        background-image: none;
+        background-color: Highlight;
       }
 
-      #date {
-        font-size: 14px;
+      .track {
+        border: 1px solid CanvasText;
       }
     }
   </style>
-  <link rel="preconnect" href="https://fonts.gstatic.com">
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="timer-container">
-    <h1>Real-Time Timer</h1>
-    <div id="timer"></div>
-    <div id="date"></div>
-    <button id="darkModeToggle">Toggle Dark Mode</button>
-  </div>
+  <main class="stage">
+    <article class="card">
+      <header class="eyebrow">
+        <span class="dot" aria-hidden="true"></span>
+        <h1>Real-Time Timer</h1>
+      </header>
+
+      <div class="time" id="time" role="timer" aria-live="off" aria-label="Current time">
+        <span id="hh">--</span><span class="colon">:</span><span id="mm">--</span>
+        <span class="seconds" id="ss">--</span>
+      </div>
+
+      <p class="date" id="date"></p>
+
+      <div class="track" aria-hidden="true"><span class="bar" id="bar"></span></div>
+
+      <p class="zone" id="zone"></p>
+
+      <noscript><p class="note">Enable JavaScript to display the live time.</p></noscript>
+    </article>
+  </main>
 
   <script>
-    function updateTime() {
-      var currentTime = new Date();
-      var hours = currentTime.getHours();
-      var minutes = currentTime.getMinutes();
-      var seconds = currentTime.getSeconds();
-      var day = currentTime.getDay();
-      var date = currentTime.getDate();
-      var month = currentTime.getMonth();
-      var year = currentTime.getFullYear();
+    (function () {
+      "use strict";
 
-      // Add leading zeros if necessary
-      hours = (hours < 10 ? "0" : "") + hours;
-      minutes = (minutes < 10 ? "0" : "") + minutes;
-      seconds = (seconds < 10 ? "0" : "") + seconds;
+      var DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      var MONTHS = ["January", "February", "March", "April", "May", "June",
+                    "July", "August", "September", "October", "November", "December"];
 
-      // Array of day names
-      var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      var root = document.documentElement;
+      var hhEl = document.getElementById("hh");
+      var mmEl = document.getElementById("mm");
+      var ssEl = document.getElementById("ss");
+      var dateEl = document.getElementById("date");
+      var zoneEl = document.getElementById("zone");
+      var barEl = document.getElementById("bar");
 
-      // Array of month names
-      var months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      var reduced = false;
+      try {
+        reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      } catch (e) { /* older browsers: keep motion */ }
 
-      // Construct the time string
-      var timeString = hours + ":" + minutes + ":" + seconds;
+      var timeoutId = null;
+      var lastDateText = "";
 
-      // Construct the date string
-      var dateString = days[day] + ", " + date + " " + months[month] + " " + year;
+      function pad(n) {
+        return n < 10 ? "0" + n : "" + n;
+      }
 
-      // Update the time and date in the DOM
-      document.getElementById("timer").textContent = timeString;
-      document.getElementById("date").textContent = dateString;
-    }
+      function zoneLabel() {
+        try {
+          var tz = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (!tz) return "";
+          var offMin = -new Date().getTimezoneOffset();
+          var sign = offMin < 0 ? "\u2212" : "+";
+          var abs = Math.abs(offMin);
+          return tz.replace(/_/g, " ") + " \u00b7 UTC" + sign + pad(Math.floor(abs / 60)) + ":" + pad(abs % 60);
+        } catch (e) {
+          return "";
+        }
+      }
 
-    // Update the time and date every second
-    setInterval(updateTime, 1000);
+      /* Aligns the CSS pulse/bar animations to the wall clock (once per
+         resume — the CSS runs itself afterwards, so nothing runs per frame). */
+      function syncMotion() {
+        if (reduced) return;
+        var now = Date.now();
+        var ms = now % 1000;
+        var sec = new Date(now).getSeconds();
+        root.style.setProperty("--sync", "-" + ms + "ms");
+        root.style.setProperty("--bar-sync", "-" + (sec * 1000 + ms) + "ms");
+      }
 
-    // Dark mode toggle
-    var darkModeToggle = document.getElementById("darkModeToggle");
-    var body = document.body;
+      function render() {
+        var now = new Date();
+        var h = now.getHours();
+        var m = now.getMinutes();
+        var s = now.getSeconds();
 
-    darkModeToggle.addEventListener("click", function() {
-      body.classList.toggle("dark-mode");
-    });
+        hhEl.textContent = pad(h);
+        mmEl.textContent = pad(m);
+        ssEl.textContent = pad(s);
+
+        var dateText = DAYS[now.getDay()] + ", " + now.getDate() + " " +
+                       MONTHS[now.getMonth()] + " " + now.getFullYear();
+        if (dateText !== lastDateText) {
+          lastDateText = dateText;
+          dateEl.textContent = dateText;
+          zoneEl.textContent = zoneLabel();
+          syncMotion();
+        }
+
+        if (reduced) {
+          barEl.style.transform = "scaleX(" + ((s + 1) / 60) + ")";
+        }
+      }
+
+      /* Drift-free: each timeout targets the next whole-second boundary. */
+      function schedule() {
+        var delay = 1000 - (Date.now() % 1000) + 10;
+        timeoutId = window.setTimeout(function () {
+          render();
+          schedule();
+        }, delay);
+      }
+
+      function start() {
+        stop();
+        syncMotion();
+        render();
+        schedule();
+      }
+
+      function stop() {
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+      }
+
+      /* Idle when the tab is hidden; resync instantly when it returns. */
+      document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+          stop();
+        } else {
+          start();
+        }
+      });
+
+      window.addEventListener("pageshow", start);
+
+      start();
+    })();
   </script>
 </body>
 </html>
